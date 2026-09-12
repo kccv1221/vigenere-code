@@ -1,0 +1,1080 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>html{color-scheme:dark}body{margin:0;font:14px/1.5 system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Cifrado Vigenère</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@300;500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --void:#000000;
+  --deep:#0a0a0c;
+  --panel:rgba(17,17,19,.66);
+  --panel-solid:#111113;
+  --edge:rgba(255,255,255,.10);
+  --edge-strong:rgba(255,255,255,.22);
+  --ink:#f2f2f4;
+  --ink-dim:#9d9da5;
+  --ink-faint:#66666e;
+  --violet:#e8e8ee;
+  --violet-soft:rgba(255,255,255,.10);
+  --cyan:#ffffff;
+  --gold:#b3aec6;
+  --rose:#8a8594;
+  --good:#8fb99a;
+  --warn:#c4bda8;
+  --bad:#c98b8b;
+  --r:14px;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+  --disp:"Unbounded","IBM Plex Sans",system-ui,sans-serif;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--void);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:15px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+#sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block}
+.nebula{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(52% 38% at 14% 3%, rgba(255,255,255,.055), transparent 70%),
+    radial-gradient(42% 32% at 88% 16%, rgba(255,255,255,.035), transparent 72%),
+    radial-gradient(64% 44% at 52% 104%, rgba(255,255,255,.045), transparent 72%),
+    radial-gradient(28% 22% at 74% 62%, rgba(255,255,255,.03), transparent 74%);
+  filter:blur(14px);
+}
+.wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding-inline:20px;padding-block:0 88px}
+
+/* ── header ── */
+header{padding-block:64px 40px}
+.eyebrow{
+  font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--ink-faint);margin:0 0 18px
+}
+h1{
+  font-family:var(--disp);font-weight:500;font-size:clamp(36px,6.6vw,62px);
+  line-height:1.02;margin:0;letter-spacing:-.025em;text-wrap:balance;color:#f6f6f8;
+}
+h1 em{font-style:normal;font-weight:300;color:var(--ink-dim)}
+.lede{max-width:60ch;color:var(--ink-dim);margin:20px 0 0;font-size:16.5px}
+.lede b{color:var(--ink);font-weight:600}
+.formula{
+  display:inline-flex;gap:10px;align-items:center;flex-wrap:wrap;
+  margin-top:26px;padding:10px 16px;border:1px solid var(--edge);border-radius:999px;
+  background:rgba(255,255,255,.10);font-family:var(--mono);font-size:13.5px;color:var(--ink)
+}
+.formula span{color:var(--ink-faint)}
+
+/* ── sections ── */
+section{margin-top:56px}
+.sec-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+h2{font-family:var(--disp);font-weight:500;font-size:22px;letter-spacing:-.01em;margin:0}
+.sec-head p{margin:0;color:var(--ink-faint);font-size:13.5px}
+
+.panel{
+  background:var(--panel);border:1px solid var(--edge);border-radius:var(--r);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+}
+.pad{padding:22px}
+
+/* ── cipher tool ── */
+.tool{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.tool > div{padding:22px}
+.tool > div + div{border-left:1px solid var(--edge)}
+@media (max-width:760px){
+  .tool{grid-template-columns:1fr}
+  .tool > div + div{border-left:none;border-top:1px solid var(--edge)}
+}
+label{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-faint);margin-bottom:8px}
+textarea,input[type=text]{
+  width:100%;background:rgba(0,0,0,.6);color:var(--ink);
+  border:1px solid var(--edge);border-radius:10px;padding:12px 14px;
+  font-family:var(--mono);font-size:14px;line-height:1.6;resize:vertical;
+}
+textarea:focus,input:focus{outline:2px solid var(--violet);outline-offset:1px;border-color:transparent}
+textarea{min-height:118px}
+.keyrow{display:flex;gap:10px;margin-top:16px;align-items:flex-end;flex-wrap:wrap}
+.keyrow > div:first-child{flex:1 1 180px}
+.modes{display:inline-flex;border:1px solid var(--edge);border-radius:999px;padding:3px;gap:2px;background:rgba(0,0,0,.5)}
+.modes button{
+  font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+  background:none;border:0;color:var(--ink-dim);padding:8px 15px;border-radius:999px;cursor:pointer
+}
+.modes button[aria-pressed=true]{background:var(--violet);color:#0a0a0c;font-weight:600}
+.modes button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.out{
+  margin-top:8px;min-height:118px;padding:12px 14px;border-radius:10px;
+  border:1px solid var(--edge-strong);background:rgba(255,255,255,.08);
+  font-family:var(--mono);font-size:14px;line-height:1.6;word-break:break-word;white-space:pre-wrap
+}
+.meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-family:var(--mono);
+  font-size:11.5px;color:var(--ink-faint);letter-spacing:.06em}
+.meta b{color:var(--cyan);font-weight:500;font-variant-numeric:tabular-nums}
+.btn{
+  font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;
+  background:rgba(255,255,255,.16);border:1px solid var(--edge-strong);color:var(--ink);
+  padding:9px 16px;border-radius:999px;cursor:pointer;transition:background .18s,transform .18s
+}
+.btn:hover{background:rgba(255,255,255,.32)}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.btn.primary{background:var(--violet);color:#0a0a0c;font-weight:600;border-color:transparent}
+.btn.primary:hover{background:#ffffff}
+.btn.ghost{background:none}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+
+/* ── steps ── */
+.steps{display:flex;gap:6px;overflow-x:auto;padding:18px 22px 20px;scrollbar-width:thin}
+.step{
+  flex:0 0 auto;width:46px;border-radius:10px;border:1px solid transparent;
+  background:rgba(0,0,0,.45);cursor:pointer;padding:8px 0 9px;text-align:center;
+  font-family:var(--mono);transition:border-color .15s,background .15s
+}
+.step:hover,.step.on{border-color:var(--violet);background:var(--violet-soft)}
+.step .p{font-size:16px;color:var(--ink-dim);font-weight:500}
+.step .k{font-size:13px;color:var(--gold)}
+.step .c{font-size:16px;color:var(--cyan);font-weight:500}
+.step .n{font-size:9.5px;color:var(--ink-faint);letter-spacing:.06em}
+.step .op{font-size:9.5px;color:var(--ink-faint);margin:2px 0}
+.steplegend{display:flex;gap:16px;flex-wrap:wrap;padding:0 22px 18px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--ink-faint)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:1px}
+.explain{padding:0 22px 20px;font-family:var(--mono);font-size:13px;color:var(--ink-dim)}
+.explain b{color:var(--ink);font-weight:500}
+
+/* ── tableau ── */
+.tabwrap{overflow-x:auto;padding:18px}
+table.tab{border-collapse:collapse;font-family:var(--mono);font-size:11px;min-width:640px}
+table.tab td,table.tab th{
+  width:23px;height:21px;text-align:center;color:var(--ink-faint);
+  font-weight:400;padding:0;transition:color .12s,background .12s
+}
+table.tab th{color:var(--ink-dim);font-weight:500}
+table.tab th.ch{color:var(--cyan)}
+table.tab th.rh{color:var(--gold)}
+table.tab tr.hl td,table.tab tr.hl th{background:rgba(179,174,198,.10);color:var(--ink)}
+table.tab td.hlc,table.tab th.hlc{background:rgba(255,255,255,.10);color:var(--ink)}
+table.tab td.hit{background:var(--violet);color:#0a0a0c;font-weight:600;border-radius:4px}
+table.tab th.hit{color:var(--ink)}
+
+/* ── cracker ── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:820px){.grid2{grid-template-columns:1fr}}
+.lens{display:flex;flex-direction:column;gap:14px}
+.lenrow{display:flex;flex-wrap:wrap;gap:8px}
+.len{
+  font-family:var(--mono);font-size:12px;padding:7px 11px;border-radius:8px;cursor:pointer;
+  border:1px solid var(--edge);background:rgba(0,0,0,.45);color:var(--ink-dim)
+}
+.len:hover{border-color:var(--edge-strong);color:var(--ink)}
+.len.on{background:var(--violet);color:#0a0a0c;border-color:transparent;font-weight:600}
+.len small{display:block;font-size:9.5px;letter-spacing:.05em;opacity:.8}
+.bar{height:5px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,rgba(255,255,255,.45),#fff)}
+.keyout{
+  font-family:var(--mono);font-size:26px;letter-spacing:.12em;color:var(--ink);
+  word-break:break-all;margin:2px 0 0
+}
+.note{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);letter-spacing:.05em}
+.pill{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+  text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid var(--edge-strong)}
+.pill.ok{color:var(--good);border-color:rgba(143,185,154,.4);background:rgba(143,185,154,.1)}
+.pill.mid{color:var(--warn);border-color:rgba(179,174,198,.4);background:rgba(179,174,198,.1)}
+.pill.low{color:var(--bad);border-color:rgba(201,139,139,.4);background:rgba(201,139,139,.1)}
+.reps{font-family:var(--mono);font-size:12px;color:var(--ink-dim);
+  display:flex;flex-wrap:wrap;gap:6px;max-height:118px;overflow:auto}
+.reps span{border:1px solid var(--edge);border-radius:6px;padding:3px 8px}
+.reps span b{color:var(--cyan);font-weight:500}
+.freq{display:grid;grid-template-columns:repeat(26,1fr);gap:2px;align-items:end;height:92px;margin-top:6px}
+.freq div{background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,.22));border-radius:2px 2px 0 0;min-height:1px}
+.freqlab{display:grid;grid-template-columns:repeat(26,1fr);gap:2px;font-family:var(--mono);
+  font-size:8.5px;color:var(--ink-faint);text-align:center;margin-top:4px}
+.plainout{
+  font-family:var(--mono);font-size:13.5px;line-height:1.7;max-height:190px;overflow:auto;
+  padding:12px 14px;border-radius:10px;background:rgba(0,0,0,.55);border:1px solid var(--edge);
+  white-space:pre-wrap;word-break:break-word;color:var(--ink)
+}
+select{
+  font-family:var(--mono);font-size:12px;background:rgba(0,0,0,.6);color:var(--ink);
+  border:1px solid var(--edge);border-radius:8px;padding:8px 10px
+}
+/* ── interacción ── */
+.out b{font-weight:400;cursor:pointer;border-radius:3px;padding:0 1px}
+.out b:hover{background:rgba(255,255,255,.22)}
+.out b.on{background:var(--violet);color:#0a0a0c;font-weight:600}
+.ctrls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 22px 4px}
+.icon{
+  font-family:var(--mono);font-size:13px;width:34px;height:34px;display:grid;place-items:center;
+  border-radius:9px;border:1px solid var(--edge-strong);background:rgba(255,255,255,.14);
+  color:var(--ink);cursor:pointer
+}
+.icon:hover{background:rgba(255,255,255,.3)}
+.icon:focus-visible,.step:focus-visible,.len:focus-visible,.dial button:focus-visible,table.tab td:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.speed{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+input[type=range]{accent-color:var(--violet);width:110px}
+.readout{
+  display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:14px 18px 0;
+  font-family:var(--mono);font-size:13px;color:var(--ink-dim);min-height:24px
+}
+.readout b{color:var(--ink);font-weight:500}
+.readout .k{color:var(--gold)}
+.readout .p{color:var(--ink-dim)}
+.readout .c{color:var(--cyan)}
+table.tab td{cursor:crosshair}
+table.tab th{cursor:pointer}
+table.tab td.pin{outline:2px solid var(--cyan);outline-offset:-2px;color:var(--ink)}
+table.tab td.quiz-ok{background:var(--good);color:#0a0a0c;font-weight:600}
+table.tab td.quiz-no{background:var(--bad);color:#0a0a0c;font-weight:600}
+.quizbar{
+  display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:14px 18px 0;
+  font-family:var(--mono);font-size:13px;color:var(--ink-dim)
+}
+.quizbar .ask{color:var(--ink)}
+.quizbar .ask b{color:var(--gold);font-size:17px;font-weight:600}
+.quizbar .ask i{color:var(--ink);font-style:normal;font-size:17px}
+.score{margin-left:auto;font-variant-numeric:tabular-nums}
+.score b{color:var(--good)}
+.score s{color:var(--bad);text-decoration:none}
+.dials{display:flex;flex-wrap:wrap;gap:8px}
+.dial{
+  display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px 5px;
+  border:1px solid var(--edge);border-radius:10px;background:rgba(0,0,0,.45);min-width:40px
+}
+.dial button{background:none;border:0;color:var(--ink-faint);cursor:pointer;font-size:11px;line-height:1;padding:2px}
+.dial button:hover{color:var(--cyan)}
+.dial span{font-family:var(--mono);font-size:19px;color:var(--ink);line-height:1.1}
+.dial small{font-family:var(--mono);font-size:8.5px;color:var(--ink-faint)}
+.dial.edited{border-color:var(--cyan)}
+/* ── historia ── */
+.time{position:relative;padding:26px 22px 26px 0;margin:0;list-style:none}
+.time::before{content:"";position:absolute;left:88px;top:30px;bottom:30px;width:1px;
+  background:linear-gradient(180deg,transparent,var(--edge-strong) 12%,var(--edge-strong) 88%,transparent)}
+.time li{display:grid;grid-template-columns:88px 1fr;gap:0 26px;padding:14px 0}
+.time .yr{
+  font-family:var(--mono);font-size:13px;color:var(--ink-dim);text-align:right;
+  padding-right:16px;position:relative;font-variant-numeric:tabular-nums;padding-top:1px
+}
+.time .yr::after{content:"";position:absolute;right:-4.5px;top:8px;width:8px;height:8px;
+  border-radius:50%;background:var(--void);border:1px solid var(--edge-strong)}
+.time li.key .yr::after{background:var(--ink);border-color:var(--ink)}
+.time h3{font-family:var(--sans);font-weight:600;font-size:15px;margin:0 0 4px;color:var(--ink)}
+.time p{margin:0;color:var(--ink-dim);font-size:14.5px;max-width:62ch}
+.time p em{color:var(--ink);font-style:italic}
+@media (max-width:620px){
+  .time{padding-left:0}
+  .time::before{left:5px}
+  .time li{grid-template-columns:1fr;gap:4px;padding-left:26px}
+  .time .yr{text-align:left;padding-right:0}
+  .time .yr::after{right:auto;left:-26px;top:7px}
+}
+footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--edge);
+  font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);letter-spacing:.05em}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+
+/* ── taller manual ── */
+.mrow{display:flex;gap:6px;overflow-x:auto;padding:16px 0 6px;scrollbar-width:thin}
+.slot{
+  flex:0 0 auto;width:44px;border-radius:12px;text-align:center;font-family:var(--mono);
+  padding:7px 0 8px;border:1px solid rgba(255,255,255,.10);
+  background:linear-gradient(155deg,rgba(255,255,255,.07),rgba(255,255,255,.02))
+}
+.slot .n{font-size:9.5px;color:var(--ink-faint)}
+.slot .p{font-size:15px;color:var(--ink-dim)}
+.slot .k{font-size:12px;color:var(--gold)}
+.slot .a{font-size:17px;color:var(--ink-faint);font-weight:500}
+.slot.done .a{color:#fff}
+.slot.now{
+  border-color:rgba(255,255,255,.55);
+  background:linear-gradient(155deg,rgba(255,255,255,.22),rgba(255,255,255,.06));
+  box-shadow:0 0 0 1px rgba(255,255,255,.18),0 6px 20px rgba(0,0,0,.5)
+}
+.slot.now .a{color:#fff}
+.slot.err{border-color:var(--bad)}
+.slot.fixed .a{color:var(--warn)}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.slot.shake{animation:shake .22s}
+.mhead{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.mstat{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--ink-faint);
+  letter-spacing:.06em;font-variant-numeric:tabular-nums}
+.mstat b{color:var(--good)}
+.mstat s{color:var(--bad);text-decoration:none}
+.mask{font-family:var(--mono);font-size:13px;color:var(--ink-dim);margin-top:14px;min-height:22px}
+.mask b{color:#fff;font-weight:500}
+.mask .hintline{color:var(--warn)}
+#mkeyin{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px}
+
+/* ── liquid glass ── */
+:root{--r:22px}
+.panel{
+  position:relative;overflow:hidden;border-radius:var(--r);
+  background:
+    linear-gradient(158deg,rgba(255,255,255,.085),rgba(255,255,255,.018) 42%,rgba(255,255,255,.05));
+  border:1px solid rgba(255,255,255,.11);
+  backdrop-filter:blur(28px) saturate(170%);-webkit-backdrop-filter:blur(28px) saturate(170%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.26),
+    inset 0 -1px 0 rgba(255,255,255,.05),
+    inset 0 0 32px rgba(255,255,255,.035),
+    0 22px 60px rgba(0,0,0,.6);
+}
+.panel::after{
+  content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  background:radial-gradient(120% 70% at 12% -18%,rgba(255,255,255,.16),transparent 58%);
+  mix-blend-mode:screen;
+}
+.tool > div + div{border-left-color:rgba(255,255,255,.09)}
+
+.btn,.icon,.len,.dial,.modes,.step{
+  background:linear-gradient(155deg,rgba(255,255,255,.14),rgba(255,255,255,.04));
+  border:1px solid rgba(255,255,255,.14);
+  backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 2px 10px rgba(0,0,0,.4);
+}
+.btn:hover,.icon:hover,.len:hover{
+  background:linear-gradient(155deg,rgba(255,255,255,.24),rgba(255,255,255,.08));
+  border-color:rgba(255,255,255,.24)
+}
+.btn.ghost{background:linear-gradient(155deg,rgba(255,255,255,.05),rgba(255,255,255,.01))}
+.btn.primary{
+  background:linear-gradient(150deg,#ffffff,#dcdce4);color:#0a0a0c;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 4px 16px rgba(255,255,255,.14)
+}
+.btn.primary:hover{background:linear-gradient(150deg,#fff,#ececf2)}
+.step{border-radius:14px;border-color:rgba(255,255,255,.10)}
+.step:hover,.step.on{
+  border-color:rgba(255,255,255,.5);
+  background:linear-gradient(155deg,rgba(255,255,255,.26),rgba(255,255,255,.08))
+}
+.len.on{background:linear-gradient(150deg,#fff,#dcdce4);color:#0a0a0c;border-color:transparent}
+.modes button[aria-pressed=true]{
+  background:linear-gradient(150deg,#fff,#dcdce4);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 10px rgba(0,0,0,.45)
+}
+.icon{border-radius:12px}
+.dial{border-radius:14px}
+
+textarea,input[type=text],select,.plainout,.out{
+  background:linear-gradient(160deg,rgba(255,255,255,.055),rgba(255,255,255,.015));
+  border:1px solid rgba(255,255,255,.12);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),inset 0 6px 18px rgba(0,0,0,.35);
+  border-radius:14px;
+}
+.out{background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.025))}
+.formula{
+  background:linear-gradient(155deg,rgba(255,255,255,.12),rgba(255,255,255,.03));
+  border-color:rgba(255,255,255,.14);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28)
+}
+.pill{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.reps span{
+  background:linear-gradient(155deg,rgba(255,255,255,.08),rgba(255,255,255,.02));
+  border-color:rgba(255,255,255,.12);border-radius:8px
+}
+.bar{background:rgba(255,255,255,.09);box-shadow:inset 0 1px 2px rgba(0,0,0,.5)}
+table.tab td.hit,.quiz-ok,.quiz-no{box-shadow:0 2px 12px rgba(0,0,0,.45)}
+</style>
+</head>
+<body>
+
+
+<canvas id="sky"></canvas>
+<div class="nebula"></div>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">Cifra polialfabética · 1553</p>
+  <h1>Cifrado <em>de</em> Vigenère</h1>
+  <p class="lede">Una clave que se repite bajo el mensaje y desplaza cada letra una cantidad distinta. Durante tres siglos se le llamó <b>le chiffre indéchiffrable</b>, hasta que Kasiski notó que la repetición de la clave deja huellas en el texto cifrado. Aquí puedes cifrar, seguir el cálculo letra por letra, leer el tablero y romper una cifra sin conocer la clave.</p>
+  <p class="formula">C<sub>i</sub> = ( P<sub>i</sub> + K<sub>i mod m</sub> ) mod 26 <span>·</span> P<sub>i</sub> = ( C<sub>i</sub> − K<sub>i mod m</sub> + 26 ) mod 26</p>
+</header>
+
+<section>
+  <div class="sec-head"><h2>Cifrar y descifrar</h2><p>Se ignoran espacios, signos y acentos; la Ñ se trata como N.</p></div>
+  <div class="panel tool">
+    <div>
+      <label for="txt">Texto</label>
+      <textarea id="txt" spellcheck="false">Las estrellas guardan el secreto que nadie supo leer</textarea>
+      <div class="keyrow">
+        <div>
+          <label for="key">Clave</label>
+          <input id="key" type="text" spellcheck="false" value="NEBULOSA">
+        </div>
+        <div class="modes" role="group" aria-label="Modo">
+          <button id="mEnc" aria-pressed="true">Cifrar</button>
+          <button id="mDec" aria-pressed="false">Descifrar</button>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" id="swap">↕ Usar el resultado como entrada</button>
+      </div>
+    </div>
+    <div>
+      <label for="out">Resultado</label>
+      <div class="out" id="out" aria-live="polite"></div>
+      <div class="meta">
+        <span>Letras <b id="mLet">0</b></span>
+        <span>Clave <b id="mKey">0</b></span>
+        <span>Alfabetos en juego <b id="mAlf">0</b></span>
+        <span>IC del resultado <b id="mIC">0</b></span>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="copy">Copiar</button>
+        <button class="btn" id="toCrack">Enviar al criptoanálisis</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Paso a paso</h2><p>Toca una letra, reprodúcelo, o muévete con ← →.</p></div>
+  <div class="panel">
+    <div class="ctrls">
+      <button class="icon" id="prev" title="Anterior (←)" aria-label="Paso anterior">‹</button>
+      <button class="icon" id="play" title="Reproducir" aria-label="Reproducir">▶</button>
+      <button class="icon" id="next" title="Siguiente (→)" aria-label="Paso siguiente">›</button>
+      <span class="speed"><label for="spd" style="margin:0">Velocidad</label>
+        <input type="range" id="spd" min="60" max="900" step="20" value="380"></span>
+    </div>
+    <div class="steps" id="steps"></div>
+    <div class="steplegend">
+      <span><i class="dot" style="background:var(--ink)"></i>texto</span>
+      <span><i class="dot" style="background:var(--gold)"></i>clave</span>
+      <span><i class="dot" style="background:var(--cyan)"></i>resultado</span>
+    </div>
+    <div class="explain" id="explain"></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Tabla de Vigenère</h2><p>Fila = clave · columna = texto · celda = cifrado. Pasa el cursor, haz clic para fijar.</p></div>
+  <div class="panel">
+    <div class="quizbar">
+      <button class="btn" id="quizToggle">Modo práctica</button>
+      <span class="ask" id="ask">Explora la tabla: cada celda es una cifra César distinta.</span>
+      <span class="score" id="score" hidden>Aciertos <b>0</b> · fallos <s>0</s></span>
+    </div>
+    <div class="readout" id="readout">—</div>
+    <div class="tabwrap"><table class="tab" id="tab"></table></div>
+  </div>
+</section>
+
+
+<section>
+  <div class="sec-head"><h2>Hazlo tú a mano</h2><p>Aquí la página no cifra: solo corrige. Usa la tabla de arriba.</p></div>
+  <div class="panel pad">
+    <p class="note" style="margin:0 0 16px">Escribe cada letra del resultado con el teclado, o haz clic en la celda correcta de la tabla. La casilla no avanza hasta que aciertes.</p>
+    <div class="mhead">
+      <div style="flex:1 1 220px">
+        <label for="mtxt">Mensaje</label>
+        <input id="mtxt" type="text" spellcheck="false" value="ORION">
+      </div>
+      <div style="flex:0 1 160px">
+        <label for="mkey">Clave</label>
+        <input id="mkey" type="text" spellcheck="false" value="LUZ">
+      </div>
+      <div class="modes" role="group" aria-label="Modo manual" style="align-self:flex-end">
+        <button id="mmEnc" aria-pressed="true">Cifrar</button>
+        <button id="mmDec" aria-pressed="false">Descifrar</button>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="mstart">Empezar</button>
+      <button class="btn" id="mhint">Pista</button>
+      <button class="btn" id="mgoto">Ir a la tabla</button>
+      <button class="btn ghost" id="mreveal">Rendirse y ver</button>
+      <button class="btn primary" id="muse" hidden>Responder con esta celda</button>
+      <span class="mstat" id="mstat">aciertos <b>0</b> · fallos <s>0</s></span>
+    </div>
+    <div class="mrow" id="mslots"></div>
+    <div class="mask" id="mmsg">Pulsa «Empezar» y ve letra por letra.</div>
+    <input id="mkeyin" type="text" autocomplete="off" aria-label="Tu letra">
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Cuatro siglos de historia</h2><p>De la tabla de Trithemius al análisis de Friedman.</p></div>
+  <div class="panel">
+    <ol class="time">
+      <li>
+        <div class="yr">1467</div>
+        <div><h3>El disco de Alberti</h3>
+        <p>León Battista Alberti construye dos discos concéntricos con alfabetos distintos y los gira durante el mensaje. Es la primera cifra polialfabética de Occidente: una misma letra deja de tener siempre el mismo disfraz, y el conteo de frecuencias que rompía toda cifra anterior se queda sin suelo.</p></div>
+      </li>
+      <li>
+        <div class="yr">1508</div>
+        <div><h3>La <em>tabula recta</em></h3>
+        <p>El abad Johannes Trithemius publica en su <em>Poligraphia</em> la tabla de 26×26 que ves más arriba. Su método avanzaba una fila por letra de forma fija —sin clave—, así que el orden de los alfabetos era conocido por cualquiera que tuviera el libro.</p></div>
+      </li>
+      <li class="key">
+        <div class="yr">1553</div>
+        <div><h3>Bellaso añade la clave</h3>
+        <p>Giovan Battista Bellaso aporta la pieza que faltaba: una palabra secreta y fácil de recordar que decide qué fila usar en cada letra. Es, exactamente, el cifrado que hoy llamamos de Vigenère.</p></div>
+      </li>
+      <li>
+        <div class="yr">1586</div>
+        <div><h3>Vigenère, y el nombre equivocado</h3>
+        <p>El diplomático francés Blaise de Vigenère publica su <em>Traicté des chiffres</em> con algo más fuerte: la autoclave, donde el propio mensaje continúa la clave tras la primera palabra. En el siglo XIX se le atribuyó por error la cifra más simple de Bellaso, y el nombre ya no se fue.</p></div>
+      </li>
+      <li>
+        <div class="yr">1854</div>
+        <div><h3>Babbage rompe la cifra en silencio</h3>
+        <p>Charles Babbage encuentra el método para quebrarla, probablemente mientras respondía a un reto publicado en una revista. No publica nada; se especula con que el ejército británico prefirió la ventaja durante la guerra de Crimea. Su trabajo salió a la luz al revisarse sus notas un siglo después.</p></div>
+      </li>
+      <li class="key">
+        <div class="yr">1863</div>
+        <div><h3>Kasiski lo hace público</h3>
+        <p>El oficial prusiano Friedrich Kasiski publica el ataque que lleva su nombre: si una secuencia del texto plano coincide con el mismo tramo de clave, se repite igual en el cifrado. Las distancias entre esas repeticiones son múltiplos del largo de la clave. Se acabó <em>le chiffre indéchiffrable</em>.</p></div>
+      </li>
+      <li>
+        <div class="yr">1917</div>
+        <div><h3>La única versión irrompible</h3>
+        <p>Gilbert Vernam y Joseph Mauborgne llevan la idea al extremo: clave aleatoria, tan larga como el mensaje y usada una sola vez. Shannon demostraría en 1949 que ese cuaderno de un solo uso es matemáticamente perfecto — y que cualquier atajo en la clave devuelve la cifra al terreno vulnerable.</p></div>
+      </li>
+      <li class="key">
+        <div class="yr">1922</div>
+        <div><h3>Friedman y el índice de coincidencia</h3>
+        <p>William Friedman convierte el criptoanálisis en estadística: la probabilidad de que dos letras tomadas al azar coincidan vale unos 0,077 en español y baja a 0,038 en texto aleatorio. Basta medirla por periodos para deducir el largo de la clave sin buscar ni una repetición. Es el número que usa el analizador de abajo.</p></div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Romper la cifra</h2><p>Kasiski para el largo de la clave, χ² por columna para cada letra.</p></div>
+  <div class="panel pad">
+    <label for="ct">Texto cifrado</label>
+    <textarea id="ct" spellcheck="false"></textarea>
+    <div class="keyrow">
+      <div style="flex:0 0 auto">
+        <label for="lang">Idioma esperado</label>
+        <select id="lang"><option value="es">Español</option><option value="en">Inglés</option></select>
+      </div>
+      <button class="btn primary" id="crack">Analizar</button>
+    </div>
+    <div id="result" style="margin-top:22px"></div>
+  </div>
+</section>
+
+<footer>Vigenère, 1553 · Kasiski, 1863 · Friedman, 1922 — hecho para entenderlo, no para confiar en él.</footer>
+</div>
+
+<script>
+(function(){
+const A="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const FREQ={
+  es:[12.53,1.42,4.68,5.86,13.68,0.69,1.01,0.70,6.25,0.44,0.01,4.97,3.15,6.71,8.68,2.51,0.88,6.87,7.98,4.63,3.93,0.90,0.02,0.22,0.90,0.52],
+  en:[8.17,1.49,2.78,4.25,12.70,2.23,2.02,6.09,6.97,0.15,0.77,4.03,2.41,6.75,7.51,1.93,0.10,5.99,6.33,9.06,2.76,0.98,2.36,0.15,1.97,0.07]
+};
+const $=id=>document.getElementById(id);
+
+/* ── cielo: estrellas y constelaciones ── */
+const cv=$("sky"),cx=cv.getContext("2d");
+let stars=[],lines=[],W=0,H=0,reduced=matchMedia("(prefers-reduced-motion:reduce)").matches;
+function seed(){
+  const dpr=Math.min(devicePixelRatio||1,2);
+  W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;cx.setTransform(dpr,0,0,dpr,0,0);
+  const n=Math.round(W*H/7600);stars=[];lines=[];
+  for(let i=0;i<n;i++){
+    const r=Math.random();
+    stars.push({x:Math.random()*W,y:Math.random()*H,r:r<.9?Math.random()*.85+.22:Math.random()*1.4+.95,
+      a:Math.random()*.5+.16,s:Math.random()*.0014+.0004,p:Math.random()*6.28,
+      c:r<.7?"255,255,255":(r<.9?"240,240,244":"226,226,232")});
+  }
+  /* constelaciones: cadenas de estrellas cercanas, unidas con trazo tenue */
+  const groups=Math.max(4,Math.round(W*H/210000));
+  for(let g=0;g<groups;g++){
+    const ox=60+Math.random()*(W-120),oy=60+Math.random()*(H-120);
+    const span=Math.min(W,H)*(.13+Math.random()*.14);
+    const pts=[];let px=ox,py=oy;
+    const count=3+Math.floor(Math.random()*4);
+    for(let i=0;i<count;i++){
+      pts.push({x:px,y:py});
+      px+=(Math.random()-.5)*span;py+=(Math.random()-.5)*span;
+      px=Math.max(20,Math.min(W-20,px));py=Math.max(20,Math.min(H-20,py));
+    }
+    for(const pt of pts)stars.push({x:pt.x,y:pt.y,r:1.3+Math.random()*.8,a:.7,
+      s:Math.random()*.0011+.0003,p:Math.random()*6.28,c:"255,255,255",node:true});
+    for(let i=0;i<pts.length-1;i++)lines.push([pts[i],pts[i+1]]);
+  }
+}
+function draw(t){
+  cx.clearRect(0,0,W,H);
+  cx.lineWidth=.7;cx.strokeStyle="rgba(255,255,255,.22)";
+  cx.setLineDash([1.5,4.5]);
+  cx.beginPath();
+  for(const [p,q] of lines){cx.moveTo(p.x,p.y);cx.lineTo(q.x,q.y)}
+  cx.stroke();cx.setLineDash([]);
+  for(const s of stars){
+    const tw=reduced?1:(.7+.3*Math.sin(t*s.s+s.p));
+    cx.globalAlpha=s.a*tw;cx.fillStyle="rgb("+s.c+")";
+    cx.beginPath();cx.arc(s.x,s.y,s.r,0,6.2832);cx.fill();
+    if(s.node){
+      cx.globalAlpha=s.a*tw*.16;
+      cx.beginPath();cx.arc(s.x,s.y,s.r*3.4,0,6.2832);cx.fill();
+    }
+  }
+  cx.globalAlpha=1;
+  if(!reduced)requestAnimationFrame(draw);
+}
+seed();requestAnimationFrame(draw);
+addEventListener("resize",()=>{seed();if(reduced)draw(0)});
+
+/* ── core ── */
+const norm=s=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/Ñ/gi,"N").toUpperCase();
+const letters=s=>norm(s).replace(/[^A-Z]/g,"");
+function ic(s){
+  if(s.length<2)return 0;
+  const c=new Array(26).fill(0);for(const ch of s)c[ch.charCodeAt(0)-65]++;
+  let n=0;for(const v of c)n+=v*(v-1);
+  return n/(s.length*(s.length-1));
+}
+function run(text,key,dec){
+  const k=letters(key);
+  const src=norm(text);
+  let out="",j=0;const st=[];
+  for(const ch of src){
+    if(ch<"A"||ch>"Z"){out+=ch;continue}
+    if(!k.length){out+=ch;continue}
+    const p=ch.charCodeAt(0)-65,kk=k.charCodeAt(j%k.length)-65;
+    const c=dec?(p-kk+26)%26:(p+kk)%26;
+    out+=A[c];st.push({p:p,k:kk,c:c,i:j});j++;
+  }
+  return {out:out,steps:st,key:k};
+}
+
+/* ── UI state ── */
+let dec=false,sel=0;
+function render(){
+  const r=run($("txt").value,$("key").value,dec);
+  const L=r.steps.length;
+  const ob=$("out");ob.textContent="";
+  if(!r.out){ob.textContent="—"}
+  else{
+    let n=0;
+    for(const ch of r.out){
+      if(ch>="A"&&ch<="Z"&&n<L){
+        const i=n++;
+        const b=document.createElement("b");
+        b.textContent=ch;b.title="Letra "+(i+1);
+        if(i===sel)b.className="on";
+        b.addEventListener("click",()=>{sel=i;stop();render();
+          const el=$("steps").children[i];if(el&&el.scrollIntoView)el.scrollIntoView({block:"nearest",inline:"center",behavior:reduced?"auto":"smooth"})});
+        ob.appendChild(b);
+      } else ob.appendChild(document.createTextNode(ch));
+    }
+  }
+  $("mLet").textContent=L;
+  $("mKey").textContent=r.key.length;
+  $("mAlf").textContent=new Set(r.key.split("")).size;
+  $("mIC").textContent=ic(letters(r.out)).toFixed(4);
+
+  const box=$("steps");box.textContent="";
+  const N=Math.min(L,120);
+  if(sel>=L)sel=0;
+  for(let i=0;i<N;i++){
+    const s=r.steps[i];
+    const d=document.createElement("button");
+    d.className="step"+(i===sel?" on":"");d.type="button";
+    d.innerHTML='<div class="n">'+(i+1)+'</div><div class="p">'+A[s.p]+'</div><div class="op">'+(dec?"−":"+")+'</div><div class="k">'+A[s.k]+'</div><div class="op">=</div><div class="c">'+A[s.c]+'</div>';
+    d.addEventListener("click",()=>{sel=i;render()});
+    box.appendChild(d);
+  }
+  if(L>N){
+    const more=document.createElement("div");
+    more.className="step";more.style.width="auto";more.style.padding="8px 12px";
+    more.innerHTML='<div class="n" style="writing-mode:horizontal-tb">+'+(L-N)+' letras</div>';
+    box.appendChild(more);
+  }
+  const s=r.steps[sel];
+  if(s){
+    const op=dec?"−":"+";
+    $("explain").innerHTML="Letra <b>"+(sel+1)+"</b>: "+A[s.p]+" ("+s.p+") "+op+" "+A[s.k]+" ("+s.k+") = "+
+      (dec?"("+s.p+" − "+s.k+" + 26)":"("+s.p+" + "+s.k+")")+" mod 26 = "+s.c+" → <b>"+A[s.c]+"</b>";
+    hl(s);
+  } else {
+    $("explain").textContent="Escribe un texto y una clave para ver el cálculo.";
+    hl(null);
+  }
+  return r;
+}
+
+/* ── tableau ── */
+(function build(){
+  const t=$("tab");let h="<tr><th></th>";
+  for(let c=0;c<26;c++)h+='<th class="ch" data-c="'+c+'" title="Añadir al texto">'+A[c]+"</th>";
+  h+="</tr>";
+  for(let r=0;r<26;r++){
+    h+='<tr data-r="'+r+'"><th class="rh" title="Añadir a la clave">'+A[r]+"</th>";
+    for(let c=0;c<26;c++)h+='<td data-r="'+r+'" data-c="'+c+'">'+A[(r+c)%26]+"</td>";
+    h+="</tr>";
+  }
+  t.innerHTML=h;
+})();
+function hlRC(row,col){
+  const t=$("tab");
+  t.querySelectorAll(".hl").forEach(e=>e.classList.remove("hl"));
+  t.querySelectorAll(".hlc").forEach(e=>e.classList.remove("hlc"));
+  t.querySelectorAll(".hit").forEach(e=>e.classList.remove("hit"));
+  if(row<0)return;
+  const tr=t.querySelector('tr[data-r="'+row+'"]');if(tr)tr.classList.add("hl");
+  t.querySelectorAll('[data-c="'+col+'"]').forEach(e=>e.classList.add("hlc"));
+  const cell=t.querySelector('td[data-r="'+row+'"][data-c="'+col+'"]');if(cell)cell.classList.add("hit");
+  const rh=tr&&tr.querySelector("th");if(rh)rh.classList.add("hit");
+  const ch=t.querySelector('th[data-c="'+col+'"]');if(ch)ch.classList.add("hit");
+}
+function hl(s){ if(!s){hlRC(-1,-1);return} hlRC(s.k, dec?s.c:s.p); }
+
+/* ── tabla interactiva + práctica ── */
+let quiz=null,good=0,bad=0,pinned=null;
+function say(r,c){
+  const extra=(man&&man.items[man.i])
+    ? ' <span style="color:var(--warn)">· clic para proponerla como respuesta</span>' : '';
+  $("readout").innerHTML='Clave <b class="k">'+A[r]+'</b> ('+r+') · texto <b class="p">'+A[c]+'</b> ('+c+
+    ') → ('+c+' + '+r+') mod 26 = '+((r+c)%26)+' → cifrado <b class="c">'+A[(r+c)%26]+'</b>';
+}
+function newQuiz(){
+  const r=Math.floor(Math.random()*26),c=Math.floor(Math.random()*26);
+  quiz={r:r,c:c};
+  $("ask").innerHTML='Clave <b>'+A[r]+'</b> · texto <i>'+A[c]+'</i> → haz clic en la celda cifrada.';
+}
+$("quizToggle").addEventListener("click",()=>{
+  if(quiz){quiz=null;$("quizToggle").textContent="Modo práctica";$("score").hidden=true;
+    $("ask").textContent="Explora la tabla: cada celda es una cifra César distinta.";
+    $("tab").querySelectorAll(".quiz-ok,.quiz-no").forEach(e=>e.classList.remove("quiz-ok","quiz-no"));
+  } else {good=0;bad=0;$("quizToggle").textContent="Salir de práctica";$("score").hidden=false;
+    $("score").innerHTML='Aciertos <b>0</b> · fallos <s>0</s>';newQuiz()}
+});
+$("tab").addEventListener("mouseover",e=>{
+  const td=e.target.closest("td");if(!td||quiz)return;
+  say(+td.dataset.r,+td.dataset.c);
+});
+$("tab").addEventListener("click",e=>{
+  const th=e.target.closest("th");
+  if(th&&!quiz){
+    if(th.classList.contains("rh")){$("key").value+=th.textContent;render()}
+    else if(th.classList.contains("ch")){$("txt").value+=th.textContent;render()}
+    return;
+  }
+  const td=e.target.closest("td");if(!td)return;
+  const r=+td.dataset.r,c=+td.dataset.c;
+  if(quiz){
+    $("tab").querySelectorAll(".quiz-ok,.quiz-no").forEach(el=>el.classList.remove("quiz-ok","quiz-no"));
+    const ok=(r===quiz.r&&c===quiz.c);
+    td.classList.add(ok?"quiz-ok":"quiz-no");
+    if(ok){good++;say(r,c);setTimeout(()=>{
+      $("tab").querySelectorAll(".quiz-ok").forEach(el=>el.classList.remove("quiz-ok"));
+      if(quiz)newQuiz()},700)}
+    else{bad++;$("readout").innerHTML='Esa celda es clave <b class="k">'+A[r]+'</b> con texto <b class="p">'+A[c]+
+      '</b>. Busca la fila <b class="k">'+A[quiz.r]+'</b> y la columna <b class="p">'+A[quiz.c]+'</b>.'}
+    $("score").innerHTML='Aciertos <b>'+good+'</b> · fallos <s>'+bad+'</s>';
+    return;
+  }
+  $("tab").querySelectorAll(".pin").forEach(el=>el.classList.remove("pin"));
+  td.classList.add("pin");say(r,c);
+  pinned={r:r,c:c};
+  if(man&&man.items[man.i]){
+    const cand=man.dec?A[c]:A[(r+c)%26];
+    $("muse").hidden=false;
+    $("muse").textContent="Responder con esta celda: "+cand;
+    $("muse").dataset.ch=cand;
+  }
+});
+
+/* ── reproducción ── */
+let timer=null;
+function stop(){if(timer){clearInterval(timer);timer=null}$("play").textContent="▶";$("play").title="Reproducir"}
+function center(){
+  const el=$("steps").children[sel];
+  if(el&&el.scrollIntoView)el.scrollIntoView({block:"nearest",inline:"center",behavior:reduced?"auto":"smooth"});
+}
+function go(d){
+  const n=run($("txt").value,$("key").value,dec).steps.length;
+  if(!n)return;
+  sel=(sel+d+n)%n;render();center();
+}
+function play(){
+  if(timer){stop();return}
+  const n=run($("txt").value,$("key").value,dec).steps.length;
+  if(!n)return;
+  if(sel>=n-1)sel=0;
+  $("play").textContent="❚❚";$("play").title="Pausa";
+  timer=setInterval(()=>{
+    const m=run($("txt").value,$("key").value,dec).steps.length;
+    if(sel>=m-1){stop();return}
+    sel++;render();center();
+  },+$("spd").value);
+}
+$("play").addEventListener("click",play);
+$("prev").addEventListener("click",()=>{stop();go(-1)});
+$("next").addEventListener("click",()=>{stop();go(1)});
+$("spd").addEventListener("input",()=>{if(timer){stop();play()}});
+addEventListener("keydown",e=>{
+  const t=e.target.tagName;
+  if(t==="TEXTAREA"||t==="INPUT"||t==="SELECT")return;
+  if(e.key==="ArrowRight"){e.preventDefault();stop();go(1)}
+  else if(e.key==="ArrowLeft"){e.preventDefault();stop();go(-1)}
+  else if(e.key===" "){e.preventDefault();play()}
+});
+
+/* ── events ── */
+$("txt").addEventListener("input",()=>{sel=0;stop();render()});
+$("key").addEventListener("input",()=>render());
+$("mEnc").addEventListener("click",()=>{dec=false;$("mEnc").setAttribute("aria-pressed","true");$("mDec").setAttribute("aria-pressed","false");render()});
+$("mDec").addEventListener("click",()=>{dec=true;$("mDec").setAttribute("aria-pressed","true");$("mEnc").setAttribute("aria-pressed","false");render()});
+$("swap").addEventListener("click",()=>{$("txt").value=$("out").textContent;sel=0;render()});
+$("copy").addEventListener("click",e=>{
+  const t=$("out").textContent;
+  if(navigator.clipboard)navigator.clipboard.writeText(t);
+  e.target.textContent="Copiado";setTimeout(()=>e.target.textContent="Copiar",1400);
+});
+$("toCrack").addEventListener("click",()=>{
+  $("ct").value=$("out").textContent;
+  $("ct").scrollIntoView({behavior:reduced?"auto":"smooth",block:"center"});
+});
+
+/* ── cryptanalysis ── */
+function kasiski(ct){
+  const pos={},dist={};
+  for(let i=0;i+3<=ct.length;i++){
+    const g=ct.substr(i,3);
+    if(pos[g]!==undefined){const d=i-pos[g];dist[g]=dist[g]||[];dist[g].push(d)}
+    pos[g]=i;
+  }
+  const f=new Array(21).fill(0);const reps=[];
+  for(const g in dist)for(const d of dist[g]){
+    reps.push({g:g,d:d});
+    for(let m=2;m<=20;m++)if(d%m===0)f[m]++;
+  }
+  reps.sort((a,b)=>b.d-a.d);
+  return {factors:f,reps:reps.slice(0,24)};
+}
+function avgIC(ct,m){
+  let s=0;
+  for(let i=0;i<m;i++){
+    let col="";for(let j=i;j<ct.length;j+=m)col+=ct[j];
+    s+=ic(col);
+  }
+  return s/m;
+}
+function bestShift(col,F){
+  let best=0,bs=1e9;
+  for(let sh=0;sh<26;sh++){
+    const c=new Array(26).fill(0);
+    for(const ch of col)c[(ch.charCodeAt(0)-65-sh+26)%26]++;
+    let x2=0;
+    for(let i=0;i<26;i++){const e=col.length*F[i]/100;if(e>0)x2+=(c[i]-e)*(c[i]-e)/e}
+    if(x2<bs){bs=x2;best=sh}
+  }
+  return {shift:best,chi:bs};
+}
+function deriveKey(ct,m,F){
+  let k="",chi=0;
+  for(let i=0;i<m;i++){
+    let col="";for(let j=i;j<ct.length;j+=m)col+=ct[j];
+    const b=bestShift(col,F);k+=A[b.shift];chi+=b.chi;
+  }
+  return {key:k,chi:chi/m};
+}
+let crackState=null;
+$("crack").addEventListener("click",()=>{
+  const ct=letters($("ct").value),F=FREQ[$("lang").value];
+  const res=$("result");
+  if(ct.length<40){res.innerHTML='<p class="note">Necesito al menos 40 letras para que el análisis signifique algo. Hay '+ct.length+'.</p>';return}
+  const ka=kasiski(ct);
+  const cands=[];
+  for(let m=1;m<=Math.min(20,Math.floor(ct.length/12));m++)
+    cands.push({m:m,ic:avgIC(ct,m),kas:ka.factors[m]||0});
+  const target=$("lang").value==="es"?.0775:.0667;
+  cands.forEach(c=>{c.score=Math.max(0,1-Math.abs(c.ic-target)/target)});
+  const top=cands.slice().sort((a,b)=>b.score-a.score||b.kas-a.kas).slice(0,8).sort((a,b)=>a.m-b.m);
+  const pick=cands.slice().sort((a,b)=>b.score-a.score||b.kas-a.kas)[0].m;
+  crackState={ct:ct,F:F,cands:cands,ka:ka,target:target};
+  paint(pick);
+});
+function paint(m,override){
+  const {ct,F,cands,ka,target}=crackState;
+  const d=deriveKey(ct,m,F);
+  const auto=d.key;
+  const key=override||auto;
+  const plain=run(ct,key,true).out;
+  const pIC=ic(plain);
+  const q=pIC>target*.85?"ok":(pIC>target*.7?"mid":"low");
+  const qt=q==="ok"?"clave probable":(q==="mid"?"clave dudosa":"probablemente no");
+  const ranked=cands.slice().sort((a,b)=>b.score-a.score).slice(0,8).sort((a,b)=>a.m-b.m);
+  const maxKas=Math.max(1,...cands.map(c=>c.kas));
+
+  const cnt=new Array(26).fill(0);for(const ch of ct)cnt[ch.charCodeAt(0)-65]++;
+  const mx=Math.max(...cnt,1);
+
+  $("result").innerHTML=
+  '<div class="grid2">'+
+    '<div class="lens">'+
+      '<div><div class="note" style="margin-bottom:8px">LARGO DE CLAVE · índice de coincidencia por periodo</div>'+
+      '<div class="lenrow" id="lenrow">'+ranked.map(c=>
+        '<button class="len'+(c.m===m?" on":"")+'" data-m="'+c.m+'">m = '+c.m+'<small>IC '+c.ic.toFixed(4)+' · Kasiski '+c.kas+'</small></button>').join("")+
+      '</div>'+
+      '<div class="note" style="margin-top:10px">Objetivo: IC ≈ '+target.toFixed(4)+' (texto plano). Un periodo correcto acerca cada columna a ese valor; uno incorrecto lo deja cerca de 0.0385.</div></div>'+
+      '<div><div class="note" style="margin-bottom:6px">TRIGRAMAS REPETIDOS · la clave se delata</div>'+
+      (ka.reps.length?'<div class="reps">'+ka.reps.map(r=>'<span>'+r.g+' <b>Δ'+r.d+'</b></span>').join("")+'</div>'
+        :'<p class="note">Ninguna repetición de tres letras: texto corto o clave larga. El IC lleva el peso del análisis.</p>')+
+      '</div>'+
+      '<div><div class="note" style="margin-bottom:6px">FRECUENCIAS DEL TEXTO CIFRADO</div>'+
+      '<div class="freq">'+cnt.map(v=>'<div style="height:'+(v/mx*100)+'%"></div>').join("")+'</div>'+
+      '<div class="freqlab">'+A.split("").map(l=>"<span>"+l+"</span>").join("")+'</div></div>'+
+    '</div>'+
+    '<div class="lens">'+
+      '<div><div class="note">CLAVE RECUPERADA · ajusta cualquier letra con ▲ ▼ (χ² promedio '+d.chi.toFixed(1)+')</div>'+
+      '<div class="dials" id="dials" style="margin-top:8px">'+key.split("").map((ch,i)=>
+        '<div class="dial'+(ch!==auto[i]?" edited":"")+'"><button data-i="'+i+'" data-d="1" aria-label="Subir letra '+(i+1)+'">▲</button>'+
+        '<span>'+ch+'</span><button data-i="'+i+'" data-d="-1" aria-label="Bajar letra '+(i+1)+'">▼</button>'+
+        '<small>'+(i+1)+'</small></div>').join("")+'</div>'+
+      '<div style="margin-top:8px"><span class="pill '+q+'">'+qt+'</span> '+
+      '<span class="note" style="margin-left:8px">IC del descifrado '+pIC.toFixed(4)+'</span></div>'+
+      '<div class="bar"><i style="width:'+Math.min(100,pIC/target*100).toFixed(0)+'%"></i></div></div>'+
+      '<div><div class="note" style="margin-bottom:6px">DESCIFRADO</div>'+
+      '<div class="plainout">'+plain.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))+'</div></div>'+
+      '<div class="actions"><button class="btn" id="useKey">Usar esta clave arriba</button>'+
+      (override?'<button class="btn ghost" id="resetKey">Volver a la automática</button>':'')+'</div>'+
+    '</div>'+
+  '</div>';
+
+  document.querySelectorAll("#lenrow .len").forEach(b=>
+    b.addEventListener("click",()=>paint(+b.dataset.m)));
+  document.querySelectorAll("#dials button").forEach(b=>b.addEventListener("click",()=>{
+    const i=+b.dataset.i,dd=+b.dataset.d;
+    const k=key.split("");
+    k[i]=A[(k[i].charCodeAt(0)-65+dd+26)%26];
+    paint(m,k.join(""));
+  }));
+  const rk=$("resetKey");if(rk)rk.addEventListener("click",()=>paint(m));
+  $("useKey").addEventListener("click",()=>{
+    $("key").value=key;$("txt").value=ct;dec=true;
+    $("mDec").setAttribute("aria-pressed","true");$("mEnc").setAttribute("aria-pressed","false");
+    sel=0;render();
+    $("txt").scrollIntoView({behavior:reduced?"auto":"smooth",block:"center"});
+  });
+}
+
+
+/* ── taller manual ── */
+let man=null;
+function mrender(){
+  const box=$("mslots");box.textContent="";
+  if(!man){box.innerHTML='<span class="note">—</span>';return}
+  man.items.forEach((it,i)=>{
+    const d=document.createElement("div");
+    d.className="slot"+(i===man.i?" now":"")+(it.a?" done":"")+(it.a&&it.fixed?" fixed":"");
+    d.innerHTML='<div class="n">'+(i+1)+'</div><div class="p">'+A[it.p]+'</div><div class="k">'+A[it.k]+
+      '</div><div class="a">'+(it.a||"·")+'</div>';
+    d.addEventListener("click",()=>{if(i<=man.done){man.i=i;mrender();$("mkeyin").focus()}});
+    box.appendChild(d);
+  });
+  const cur=man.items[man.i];
+  if(cur){
+    const el=box.children[man.i];
+    if(el&&el.scrollIntoView)el.scrollIntoView({block:"nearest",inline:"center",behavior:reduced?"auto":"smooth"});
+  }
+  $("mstat").innerHTML="aciertos <b>"+man.ok+"</b> · fallos <s>"+man.bad+"</s>";
+}
+function mstartFn(){
+  const txt=letters($("mtxt").value),k=letters($("mkey").value);
+  if(!txt.length||!k.length){$("mmsg").textContent="Necesito un mensaje y una clave.";return}
+  const r=run(txt,k,manualDec);
+  man={dec:manualDec,items:r.steps.map(s=>({p:s.p,k:s.k,c:s.c,a:"",fixed:false})),i:0,ok:0,bad:0,done:0,tries:0};
+  $("mmsg").innerHTML=manualDec
+    ? 'Busca en la fila de la clave la letra cifrada; la <b>columna</b> donde aparece es tu respuesta.'
+    : 'Busca la fila de la clave y la columna del texto: la <b>celda</b> donde se cruzan es tu respuesta.';
+  $("muse").hidden=true;
+  mrender();$("mkeyin").focus();
+}
+function manswer(ch){
+  if(!man)return;
+  const it=man.items[man.i];if(!it)return;
+  const want=A[it.c];
+  if(ch===want){
+    it.a=ch;man.ok++;man.tries=0;
+    man.done=Math.max(man.done,man.i+1);
+    if(man.i<man.items.length-1){man.i++;$("mmsg").innerHTML='Bien. Siguiente letra.'}
+    else{
+      const errs=man.items.filter(x=>x.fixed).length;
+      $("mmsg").innerHTML='Terminado: '+man.items.length+' letras, '+man.bad+' fallos'+
+        (errs?', '+errs+' con pista':'')+'. Resultado: <b>'+man.items.map(x=>x.a).join("")+'</b>';
+    }
+  } else {
+    man.bad++;man.tries++;
+    const el=$("mslots").children[man.i];
+    if(el){el.classList.add("err","shake");setTimeout(()=>el.classList.remove("shake"),240)}
+    $("mmsg").innerHTML=man.tries>=2
+      ? '<span class="hintline">No: mira la fila <b>'+A[it.k]+'</b> y la columna <b>'+A[man.dec?it.c:it.p]+'</b> de la tabla.</span>'
+      : 'Esa no. Vuelve a mirar la tabla.';
+  }
+  mrender();
+}
+let manualDec=false;
+$("mmEnc").addEventListener("click",()=>{manualDec=false;$("mmEnc").setAttribute("aria-pressed","true");$("mmDec").setAttribute("aria-pressed","false");man=null;mrender();$("mmsg").textContent="Modo cifrar. Pulsa «Empezar»."});
+$("mmDec").addEventListener("click",()=>{manualDec=true;$("mmDec").setAttribute("aria-pressed","true");$("mmEnc").setAttribute("aria-pressed","false");man=null;mrender();$("mmsg").textContent="Modo descifrar. Pulsa «Empezar»."});
+$("mstart").addEventListener("click",mstartFn);
+$("mhint").addEventListener("click",()=>{
+  if(!man){$("mmsg").textContent="Primero pulsa «Empezar».";return}
+  const it=man.items[man.i];
+  it.fixed=true;
+  $("mmsg").innerHTML='<span class="hintline">Fila <b>'+A[it.k]+'</b> · columna <b>'+A[man.dec?it.c:it.p]+
+    '</b> → la celda es <b>'+A[it.c]+'</b>. Escríbela para avanzar.</span>';
+  hlRC(it.k, man.dec?it.c:it.p);
+  $("tab").scrollIntoView({behavior:reduced?"auto":"smooth",block:"center"});
+  mrender();
+});
+$("mreveal").addEventListener("click",()=>{
+  if(!man){$("mmsg").textContent="Primero pulsa «Empezar».";return}
+  man.items.forEach(x=>{if(!x.a){x.a=A[x.c];x.fixed=true}});
+  man.done=man.items.length;man.i=man.items.length-1;
+  $("mmsg").innerHTML='Resultado completo: <b>'+man.items.map(x=>x.a).join("")+'</b>';
+  mrender();
+});
+$("mkeyin").addEventListener("input",e=>{
+  const v=norm(e.target.value).replace(/[^A-Z]/g,"");
+  e.target.value="";
+  if(v)manansSeq(v);
+});
+function manansSeq(v){for(const ch of v)manswer(ch)}
+addEventListener("keydown",e=>{
+  if(!man)return;
+  const t=e.target.tagName;
+  if(t==="TEXTAREA"||t==="SELECT"||(t==="INPUT"&&e.target.id!=="mkeyin"))return;
+  if(/^[a-zA-ZñÑ]$/.test(e.key)){e.preventDefault();manswer(norm(e.key))}
+  else if(e.key==="Backspace"&&man.i>0){e.preventDefault();man.i--;mrender()}
+});
+$("mslots").addEventListener("click",()=>$("mkeyin").focus());
+$("mgoto").addEventListener("click",()=>{
+  $("tab").scrollIntoView({behavior:reduced?"auto":"smooth",block:"center"});
+});
+$("muse").addEventListener("click",()=>{
+  const ch=$("muse").dataset.ch;
+  if(ch)manswer(ch);
+  $("muse").hidden=true;
+});
+
+/* ── boot ── */
+const first=render();
+mrender();
+$("ct").value=run("El enemigo cruzara el rio al amanecer del tercer dia cuando la niebla cubra por completo el valle y las hogueras del campamento norte ya se hayan apagado sin dejar rastro alguno","ORION",false).out;
+$("crack").click();
+})();
+</script>
+
+</body>
+</html>
